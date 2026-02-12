@@ -2,7 +2,9 @@ package org.example;
 
 import java.util.Random;
 import java.util.Scanner;
-import java.lang.Math.*;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
@@ -11,13 +13,14 @@ public class App
 {
     //Result
     static char AI; //Computer's Move
-    static int Xwin = 0;
-    static int Owin = 0;
+    static int xWin;
+    static int oWin;
+    private static final Random RANDOM = new Random();
 
 
     static boolean finished(char[][] arr, boolean silent) { //check status(win/draw/incomplete)
-        Xwin = 0;
-        Owin = 0;
+        xWin = 0;
+        oWin = 0;
 
 //Horizontal
         for (int i = 0; i < 3; i++) {
@@ -32,10 +35,10 @@ public class App
 
             }
             if (markX == 3) {
-                Xwin = 1;
+                xWin = 1;
             }
             if (markO == 3) {
-                Owin = 1;
+                oWin = 1;
             }
         }
 
@@ -52,10 +55,10 @@ public class App
 
             }
             if (markX == 3) {
-                Xwin = 1;
+                xWin = 1;
             }
             if (markO == 3) {
-                Owin = 1;
+                oWin = 1;
             }
         }
 
@@ -73,10 +76,10 @@ public class App
 
 
             if (markX == 3) {
-                Xwin = 1;
+                xWin = 1;
             }
             if (markO == 3) {
-                Owin = 1;
+                oWin = 1;
             }
         }
 
@@ -89,10 +92,10 @@ public class App
         }
 
         if (markX == 3) {
-            Xwin = 1;
+            xWin = 1;
         }
         if (markO == 3) {
-            Owin = 1;
+            oWin = 1;
         }
 
 
@@ -111,11 +114,11 @@ public class App
 //PRINT RESULT
 
 
-        if (Xwin == 1 && Owin == 0) {
+        if (xWin == 1 && oWin == 0) {
 
             if (!silent) System.out.println("X wins");
 
-        } else if (Owin == 1 && Xwin == 0) {
+        } else if (oWin == 1 && xWin == 0) {
 
             if (!silent) System.out.println("O wins");
         } else if (!hasEmpty) { // DRAW
@@ -143,45 +146,41 @@ public class App
 
 
     static void userMove(char[][] arr, char ch, Scanner sc) {
-        //Make a move (HUMAN) = coordinates {a,b}
-        int a;
-        int b;
 
-//Check input
-        while (true) {
+        int a = 0;
+        int b = 0;
+        boolean validMove = false;
+
+        while (!validMove) {
             System.out.println("Enter the coordinates: ");
+
             if (!sc.hasNextInt()) {
                 System.out.println("You should enter numbers!");
                 sc.nextLine();
-                continue; //Until valid 'a' keeps checking
+                continue;
             }
             a = sc.nextInt();
 
             if (!sc.hasNextInt()) {
                 System.out.println("You should enter numbers!");
                 sc.nextLine();
-                continue; //Until valid 'b' keeps checking
+                continue;
             }
             b = sc.nextInt();
-
+            sc.nextLine(); // clear buffer
 
             if (a < 1 || a > 3 || b < 1 || b > 3) {
                 System.out.println("Coordinates should be from 1 to 3!");
-                continue;
             } else if (arr[a - 1][b - 1] != ' ') {
                 System.out.println("This cell is occupied! Choose another one!");
-                continue;
+            } else {
+                validMove = true;
             }
-            break;
-
         }
 
-
-        //Human Move - Mark valid move on the grid
         arr[a - 1][b - 1] = ch;
-
-
     }
+
 
     static void easyMove(char[][] arr, char ch) {
 
@@ -193,9 +192,9 @@ public class App
 
         while (arr[x][y] != ' ') { //check if cell is occupied
             //generate a random move
-            Random rnd = new Random();
-            x = rnd.nextInt(3);
-            y = rnd.nextInt(3); //range from 0 to 2
+
+            x = RANDOM.nextInt(3);
+            y = RANDOM.nextInt(3); //range from 0 to 2
         }
 
         arr[x][y] = ch; //mark on grid
@@ -412,8 +411,8 @@ public class App
                     arr[i][j] = move; //make move and check score
 
                     if (finished(arr, true)) {//if game ends
-                        if ((Xwin == 1 && AI == 'X') || (Owin == 1 && AI == 'O')) score = 1; //if maximizing player wins
-                        else if (Xwin == 1 || Owin == 1) score = -1; //if minimizing player wins
+                        if ((xWin == 1 && AI == 'X') || (oWin == 1 && AI == 'O')) score = 1; //if maximizing player wins
+                        else if (xWin == 1 || oWin == 1) score = -1; //if minimizing player wins
                         else score = 0; //if DRAW
                     } else {//if game didnt end calculate further
                         score = minimax(arr, nxtMove, nxtMove == AI); //opponents move
@@ -458,8 +457,8 @@ public class App
 
 
                     if (finished(arr, true)) {
-                        if ((Xwin == 1 && AI == 'X') || (Owin == 1 && AI == 'O')) score = 1; //maximising
-                        else if (Xwin == 1 || Owin == 1) score = -1; //minimising
+                        if ((xWin == 1 && AI == 'X') || (oWin == 1 && AI == 'O')) score = 1; //maximising
+                        else if (xWin == 1 || oWin == 1) score = -1; //minimising
                         else score = 0; //draw
                     } else {
                         score = minimax(arr, nxtMove, !isMaximising); //switch turns
@@ -479,241 +478,82 @@ public class App
         return bestscore;
     }
 
+    private static void makeMove(char[][] arr, String type, char symbol, Scanner sc) {
 
-    public static void main(String[] args) {
-
-
-        Scanner sc = new Scanner(System.in);
-
-        char[][] arr = new char[3][3];
-
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
-                arr[i][j] = ' ';
-            }
+        switch (type) {
+            case "user":
+                userMove(arr, symbol, sc);
+                break;
+            case "easy":
+                easyMove(arr, symbol);
+                break;
+            case "medium":
+                medium(arr, symbol);
+                break;
+            case "hard":
+                hard(arr, symbol);
+                break;
+            default:
+                System.out.println("Invalid Input");
         }
+    }
 
-        printGrid(arr);
-        //User input
+
+    private static void playGame(char[][] arr, String p1, String p2, Scanner sc) {
 
         while (true) {
 
-            //Menu
-            System.out.println("Input command:");
-            String line = sc.nextLine();
+            makeMove(arr, p1, 'X', sc);
+            printGrid(arr);
+            if (finished(arr, false)) break;
 
-            if (line.equals("exit")) {
-                break;
-            }
+            makeMove(arr, p2, 'O', sc);
+            printGrid(arr);
+            if (finished(arr, false)) break;
+        }
+    }
 
-            String[] menu = line.split(" ");
-            if (!menu[0].equals("start")) {
-                System.out.println("Bad parameters!");
-                continue;
-            }
+    public static void main(String[] args) {
+
+        try (Scanner sc = new Scanner(
+                new InputStreamReader(System.in, StandardCharsets.UTF_8))) {
+
+            char[][] arr = new char[3][3];
+
             for (int i = 0; i < 3; i++) {
                 for (int j = 0; j < 3; j++) {
                     arr[i][j] = ' ';
                 }
             }
+
             printGrid(arr);
 
+            while (true) {
 
-            if (menu.length != 3) {
-                System.out.println("Bad parameters!");
-                continue;
+                System.out.println("Input command:");
+                String line = sc.nextLine();
+
+                if (line.equals("exit")) {
+                    break;
+                }
+
+                String[] menu = line.split(" ");
+                if (!menu[0].equals("start") || menu.length != 3) {
+                    System.out.println("Bad parameters!");
+                    continue;
+                }
+
+                for (int i = 0; i < 3; i++) {
+                    for (int j = 0; j < 3; j++) {
+                        arr[i][j] = ' ';
+                    }
+                }
+
+                printGrid(arr);
+
+                playGame(arr, menu[1], menu[2], sc);
             }
-
-// input cases
-            if (menu[1].equals("easy") && menu[2].equals("easy")) {
-                while (true) {
-                    easyMove(arr, 'X');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                    easyMove(arr, 'O');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                }
-            } else if (menu[1].equals("user") && menu[2].equals("easy")) {
-                while (true) {
-                    userMove(arr, 'X', sc);
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                    easyMove(arr, 'O');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                }
-            } else if (menu[1].equals("easy") && menu[2].equals("user")) {
-                while (true) {
-                    easyMove(arr, 'X');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                    userMove(arr, 'O', sc);
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                }
-            } else if (menu[1].equals("user") && menu[2].equals("user")) {
-                while (true) {
-                    userMove(arr, 'X', sc);
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                    userMove(arr, 'O', sc);
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                }
-            } else if (menu[1].equals("medium") && menu[2].equals("medium")) {
-                while (true) {
-                    medium(arr, 'X');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                    medium(arr, 'O');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                }
-            } else if (menu[1].equals("medium") && menu[2].equals("user")) {
-                while (true) {
-                    medium(arr, 'X');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                    userMove(arr, 'O', sc);
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                }
-            } else if (menu[1].equals("user") && menu[2].equals("medium")) {
-                while (true) {
-                    userMove(arr, 'X', sc);
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                    medium(arr, 'O');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                }
-            } else if (menu[1].equals("easy") && menu[2].equals("medium")) {
-                while (true) {
-                    easyMove(arr, 'X');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                    medium(arr, 'O');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                }
-            } else if (menu[1].equals("medium") && menu[2].equals("easy")) {
-                while (true) {
-                    medium(arr, 'X');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                    easyMove(arr, 'O');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                }
-            } else if (menu[1].equals("hard") && menu[2].equals("hard")) {
-                while (true) {
-                    hard(arr, 'X');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                    medium(arr, 'O');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                }
-            } else if (menu[1].equals("hard") && menu[2].equals("user")) {
-                while (true) {
-                    hard(arr, 'X');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                    userMove(arr, 'O', sc);
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                }
-            } else if (menu[1].equals("user") && menu[2].equals("hard")) {
-                while (true) {
-                    userMove(arr, 'X', sc);
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                    hard(arr, 'O');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                }
-            } else if (menu[1].equals("easy") && menu[2].equals("hard")) {
-                while (true) {
-                    easyMove(arr, 'X');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                    hard(arr, 'O');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                }
-            } else if (menu[1].equals("hard") && menu[2].equals("easy")) {
-                while (true) {
-                    hard(arr, 'X');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                    easyMove(arr, 'O');
-                    printGrid(arr);
-                    if (finished(arr, false)) {
-                        break;
-                    }
-                }
-            } else {
-                System.out.println("Invalid Input");
-            }
-
-
         }
-
-
     }
+
 }
