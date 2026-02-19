@@ -1,22 +1,19 @@
 package org.example;
 
-import java.util.Random;
-import java.util.Scanner;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-
+import java.util.Random;
+import java.util.Scanner;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 
-public class App
-{
+public class App {
+    private static final Random RANDOM = new Random();
     //Result
     static char AI; //Computer's Move
     static int xWin;
     static int oWin;
-    private static final Random RANDOM = new Random();
-
 
     static boolean finished(char[][] arr, boolean silent) { //check status(win/draw/incomplete)
         xWin = 0;
@@ -411,9 +408,14 @@ public class App
                     arr[i][j] = move; //make move and check score
 
                     if (finished(arr, true)) {//if game ends
-                        if ((xWin == 1 && AI == 'X') || (oWin == 1 && AI == 'O')) score = 1; //if maximizing player wins
-                        else if (xWin == 1 || oWin == 1) score = -1; //if minimizing player wins
-                        else score = 0; //if DRAW
+                        if ((xWin == 1 && AI == 'X') || (oWin == 1 && AI == 'O')) {
+                            // Always prioritize a direct winning move.
+                            return;
+                        }
+                        score = -1;
+                        if (!(xWin == 1 || oWin == 1)) {
+                            score = 0; //if DRAW
+                        }
                     } else {//if game didnt end calculate further
                         score = minimax(arr, nxtMove, nxtMove == AI); //opponents move
                     }
@@ -515,8 +517,7 @@ public class App
 
     public static void main(String[] args) {
 
-        try (Scanner sc = new Scanner(
-                new InputStreamReader(System.in, StandardCharsets.UTF_8))) {
+        try (Scanner sc = new Scanner(new InputStreamReader(System.in, StandardCharsets.UTF_8))) {
 
             char[][] arr = new char[3][3];
 
