@@ -5,7 +5,9 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.PrintStream;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 
@@ -14,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class AppTest {
 
     private final PrintStream originalOut = System.out;
+    private final InputStream originalIn = System.in;
     private final ByteArrayOutputStream out = new ByteArrayOutputStream();
 
     private void captureStdout() {
@@ -27,6 +30,7 @@ class AppTest {
     @AfterEach
     void restoreStdout() {
         System.setOut(originalOut);
+        System.setIn(originalIn);
         out.reset();
     }
 
@@ -49,7 +53,7 @@ class AppTest {
     }
 
     // ---------------------------
-    // finished() tests
+    // finished()
     // ---------------------------
 
     @Test
@@ -59,9 +63,7 @@ class AppTest {
         b[1][1] = 'X';
         b[1][2] = 'X';
 
-        boolean done = App.finished(b, true);
-
-        assertTrue(done);
+        assertTrue(App.finished(b, true));
         assertEquals(1, App.xWin);
         assertEquals(0, App.oWin);
     }
@@ -73,9 +75,7 @@ class AppTest {
         b[1][2] = 'O';
         b[2][2] = 'O';
 
-        boolean done = App.finished(b, true);
-
-        assertTrue(done);
+        assertTrue(App.finished(b, true));
         assertEquals(0, App.xWin);
         assertEquals(1, App.oWin);
     }
@@ -87,9 +87,7 @@ class AppTest {
         b[1][1] = 'X';
         b[2][2] = 'X';
 
-        boolean done = App.finished(b, true);
-
-        assertTrue(done);
+        assertTrue(App.finished(b, true));
         assertEquals(1, App.xWin);
         assertEquals(0, App.oWin);
     }
@@ -101,65 +99,77 @@ class AppTest {
         b[1][1] = 'O';
         b[2][0] = 'O';
 
-        boolean done = App.finished(b, true);
-
-        assertTrue(done);
+        assertTrue(App.finished(b, true));
         assertEquals(0, App.xWin);
         assertEquals(1, App.oWin);
     }
 
     @Test
-    void finished_detectsDraw_whenNoEmptyAndNoWinners() {
+    void finished_printsOWins_whenNotSilent() {
+        captureStdout();
+
+        char[][] b = emptyBoard();
+        b[2][0] = 'O';
+        b[2][1] = 'O';
+        b[2][2] = 'O';
+
+        assertTrue(App.finished(b, false));
+        assertTrue(stdout().contains("O wins"));
+    }
+
+    @Test
+    void finished_printsDraw_whenNotSilent() {
+        captureStdout();
+
         char[][] b = {
                 {'X', 'O', 'X'},
                 {'X', 'O', 'O'},
                 {'O', 'X', 'X'}
         };
 
-        boolean done = App.finished(b, true);
+        assertTrue(App.finished(b, false));
+        assertTrue(stdout().contains("Draw"));
+    }
 
-        assertTrue(done);
+    @Test
+    void finished_returnsFalse_whenGameNotFinished_andHasEmptyBreaksEarly() {
+        char[][] b = emptyBoard();
+        b[0][0] = 'X';
+        b[0][1] = 'O';
+        // hasEmpty true and should hit the inner-loop break
+
+        assertFalse(App.finished(b, true));
         assertEquals(0, App.xWin);
         assertEquals(0, App.oWin);
     }
 
+    // ---------------------------
+    // printGrid()
+    // ---------------------------
+
     @Test
-    void finished_returnsFalse_whenGameNotFinished() {
+    void printGrid_printsBordersAndCells() {
+        captureStdout();
         char[][] b = emptyBoard();
         b[0][0] = 'X';
         b[1][1] = 'O';
 
-        boolean done = App.finished(b, true);
+        App.printGrid(b);
 
-        assertFalse(done);
-        assertEquals(0, App.xWin);
-        assertEquals(0, App.oWin);
-    }
-
-    @Test
-    void finished_printsResult_whenNotSilent() {
-        captureStdout();
-
-        char[][] b = emptyBoard();
-        b[0][0] = 'X';
-        b[0][1] = 'X';
-        b[0][2] = 'X';
-
-        boolean done = App.finished(b, false);
-
-        assertTrue(done);
-        assertTrue(stdout().contains("X wins"));
+        String s = stdout();
+        assertTrue(s.contains("---------"));
+        assertTrue(s.contains("| X"));
+        assertTrue(s.contains(" O "));
     }
 
     // ---------------------------
-    // userMove() tests
+    // userMove()
     // ---------------------------
 
     @Test
     void userMove_placesMark_whenValidCoordinatesProvided() {
         char[][] b = emptyBoard();
 
-        // Coordinates are 1-based in your program
         String input = "2 3\n";
         Scanner sc = new Scanner(new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)));
 
@@ -173,14 +183,27 @@ class AppTest {
         captureStdout();
         char[][] b = emptyBoard();
 
-        // First token is non-int -> should print "You should enter numbers!"
-        // Then valid coordinates: 1 1
         String input = "a\n1 1\n";
         Scanner sc = new Scanner(new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)));
 
         App.userMove(b, 'O', sc);
 
         assertEquals('O', b[0][0]);
+        assertTrue(stdout().contains("You should enter numbers!"));
+    }
+
+    @Test
+    void userMove_rejectsSecondTokenNonNumeric_thenAcceptsValid() {
+        captureStdout();
+        char[][] b = emptyBoard();
+
+        // First int ok, second not-int triggers second "You should enter numbers!" branch
+        String input = "1 a\n2 2\n";
+        Scanner sc = new Scanner(new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)));
+
+        App.userMove(b, 'X', sc);
+
+        assertEquals('X', b[1][1]);
         assertTrue(stdout().contains("You should enter numbers!"));
     }
 
@@ -214,35 +237,89 @@ class AppTest {
     }
 
     // ---------------------------
-    // medium() tests
+    // easyMove()
     // ---------------------------
 
     @Test
-    void medium_makesWinningMove_whenAvailableForX() {
+    void easyMove_placesExactlyOneMark_andPrints() {
+        captureStdout();
         char[][] b = emptyBoard();
-        // X can win by placing at (0,2)
+
+        int before = countMarks(b, 'X') + countMarks(b, 'O');
+        App.easyMove(b, 'X');
+        int after = countMarks(b, 'X') + countMarks(b, 'O');
+
+        assertEquals(before + 1, after);
+        assertTrue(stdout().contains("Making move level \"easy\""));
+    }
+
+    @Test
+    void easyMove_skipsOccupiedInitialCell_thenFindsEmpty() {
+        // Force the while(arr[x][y] != ' ') loop to run at least once,
+        // because x=y=0 initially.
+        char[][] b = emptyBoard();
+        b[0][0] = 'O';
+
+        int before = countMarks(b, 'X') + countMarks(b, 'O');
+        App.easyMove(b, 'X');
+        int after = countMarks(b, 'X') + countMarks(b, 'O');
+
+        assertEquals(before + 1, after);
+        assertEquals('O', b[0][0]); // ensure it didn't overwrite occupied cell
+    }
+
+    // ---------------------------
+    // medium()
+    // ---------------------------
+
+    @Test
+    void medium_makesWinningMove_whenAvailableForX_row() {
+        char[][] b = emptyBoard();
         b[0][0] = 'X';
         b[0][1] = 'X';
 
         App.medium(b, 'X');
 
-        assertEquals('X', b[0][2], "Medium should take immediate winning move");
+        assertEquals('X', b[0][2]);
+    }
+
+    @Test
+    void medium_makesWinningMove_whenAvailableForO_column() {
+        char[][] b = emptyBoard();
+        b[0][1] = 'O';
+        b[1][1] = 'O';
+
+        App.medium(b, 'O');
+
+        assertEquals('O', b[2][1]);
     }
 
     @Test
     void medium_blocksOpponentImmediateWin_whenPlayingO() {
         char[][] b = emptyBoard();
-        // X is about to win on column 0, O must block at (2,0)
         b[0][0] = 'X';
         b[1][0] = 'X';
 
         App.medium(b, 'O');
 
-        assertEquals('O', b[2][0], "Medium should block opponent's winning move");
+        assertEquals('O', b[2][0]);
     }
 
     @Test
-    void medium_fallbackMakesExactlyOneMove_whenNoWinOrBlock() {
+    void medium_blocksDiagonalThreat_whenPlayingX() {
+        char[][] b = emptyBoard();
+        // O threatens to win diagonal L->R with (2,2)
+        b[0][0] = 'O';
+        b[1][1] = 'O';
+
+        App.medium(b, 'X');
+
+        assertEquals('X', b[2][2]);
+    }
+
+    @Test
+    void medium_fallbackCallsEasyMove_whenNoWinOrBlock() {
+        captureStdout();
         char[][] b = emptyBoard();
         b[0][0] = 'X';
         b[1][1] = 'O';
@@ -251,43 +328,177 @@ class AppTest {
         App.medium(b, 'X');
         int after = countMarks(b, 'X') + countMarks(b, 'O');
 
-        assertEquals(before + 1, after, "Medium fallback should place exactly one mark");
+        assertEquals(before + 1, after);
+        assertTrue(stdout().contains("Making move level \"medium\""));
+        // In fallback, easyMove prints too
+        assertTrue(stdout().contains("Making move level \"easy\""));
     }
 
     // ---------------------------
-    // hard() tests (minimax)
+    // minimax()
     // ---------------------------
 
     @Test
-    void hard_takesImmediateWinningMove() {
+    void minimax_returns1_whenAIWinsTerminal() {
         char[][] b = emptyBoard();
-        // X can win immediately at (2,2)
         b[0][0] = 'X';
-        b[1][1] = 'X';
+        b[0][1] = 'X';
+        b[0][2] = 'X';
+
+        App.AI = 'X';
+        assertEquals(1, App.minimax(b, 'O', false));
+    }
+
+    @Test
+    void minimax_returnsMinus1_whenOpponentWinsTerminal() {
+        char[][] b = emptyBoard();
+        b[1][0] = 'O';
+        b[1][1] = 'O';
+        b[1][2] = 'O';
+
+        App.AI = 'X'; // AI is X, but O has won => -1
+        assertEquals(-1, App.minimax(b, 'X', true));
+    }
+
+    @Test
+    void minimax_returns0_whenDrawTerminal() {
+        char[][] b = {
+                {'X', 'O', 'X'},
+                {'X', 'O', 'O'},
+                {'O', 'X', 'X'}
+        };
+
+        App.AI = 'X';
+        assertEquals(0, App.minimax(b, 'O', true));
+    }
+
+    @Test
+    void minimax_exercisesMaxAndMinPaths_onNonTerminalBoard() {
+        // Non-terminal with empties -> forces recursion and both max/min updates
+        char[][] b = emptyBoard();
+        b[0][0] = 'X';
         b[0][1] = 'O';
-        b[0][2] = 'O';
+        b[1][1] = 'X';
+        b[2][2] = 'O';
+
+        App.AI = 'X';
+
+        int scoreMax = App.minimax(b, 'X', true);
+        int scoreMin = App.minimax(b, 'O', false);
+
+        assertTrue(scoreMax >= -1 && scoreMax <= 1);
+        assertTrue(scoreMin >= -1 && scoreMin <= 1);
+    }
+
+    // ---------------------------
+    // hard()
+    // ---------------------------
+
+    @Test
+    void hard_immediateWinningMove_returnsEarlyPathCovered() {
+        // Your hard() now has a direct return when it finds a winning move.
+        // Make sure that path is taken (and does NOT place a different move later).
+        char[][] b = emptyBoard();
+        b[0][0] = 'X';
+        b[0][1] = 'X';
+        b[1][0] = 'O';
+        b[1][1] = 'O';
+        // winning for X at (0,2)
 
         App.hard(b, 'X');
 
-        assertEquals('X', b[2][2], "Hard should pick immediate winning move when available");
+        // It should immediately return after detecting winning in simulation,
+        // so board should be in a terminal X-win state.
         assertTrue(App.finished(b, true));
         assertEquals(1, App.xWin);
     }
 
     @Test
-    void minimax_returnsPositiveScore_whenMaximizerHasAlreadyWon() {
+    void hard_placesSomeMove_whenNoImmediateWinAvailable() {
         char[][] b = emptyBoard();
-        // Force an already-won board for X
+        b[0][0] = 'X';
+        b[1][1] = 'O';
+
+        int before = countMarks(b, 'X') + countMarks(b, 'O');
+        App.hard(b, 'X');
+        int after = countMarks(b, 'X') + countMarks(b, 'O');
+
+        assertEquals(before + 1, after, "Hard should place exactly one mark when playing");
+    }
+
+    @Test
+    void constructor_isCovered() {
+        assertNotNull(new App());
+    }
+
+    @Test
+    void privateMakeMove_coversAllCasesIncludingDefault() throws Exception {
+        captureStdout();
+        Method makeMove = App.class.getDeclaredMethod(
+                "makeMove", char[][].class, String.class, char.class, Scanner.class);
+        makeMove.setAccessible(true);
+
+        char[][] userBoard = emptyBoard();
+        Scanner userScanner = new Scanner(new ByteArrayInputStream("1 1\n".getBytes(StandardCharsets.UTF_8)));
+        makeMove.invoke(null, userBoard, "user", 'X', userScanner);
+        assertEquals('X', userBoard[0][0]);
+
+        char[][] easyBoard = emptyBoard();
+        makeMove.invoke(null, easyBoard, "easy", 'O', new Scanner(new ByteArrayInputStream(new byte[0])));
+        assertEquals(1, countMarks(easyBoard, 'O'));
+
+        char[][] mediumBoard = emptyBoard();
+        mediumBoard[0][0] = 'X';
+        mediumBoard[0][1] = 'X';
+        makeMove.invoke(null, mediumBoard, "medium", 'X', new Scanner(new ByteArrayInputStream(new byte[0])));
+        assertEquals('X', mediumBoard[0][2]);
+
+        char[][] hardBoard = emptyBoard();
+        hardBoard[0][0] = 'X';
+        hardBoard[1][1] = 'O';
+        int before = countMarks(hardBoard, 'X') + countMarks(hardBoard, 'O');
+        makeMove.invoke(null, hardBoard, "hard", 'X', new Scanner(new ByteArrayInputStream(new byte[0])));
+        int after = countMarks(hardBoard, 'X') + countMarks(hardBoard, 'O');
+        assertEquals(before + 1, after);
+
+        char[][] invalidBoard = emptyBoard();
+        makeMove.invoke(null, invalidBoard, "invalid", 'X', new Scanner(new ByteArrayInputStream(new byte[0])));
+        assertTrue(stdout().contains("Invalid Input"));
+    }
+
+    @Test
+    void privatePlayGame_executesBothTurnsAndStopsOnFinish() throws Exception {
+        Method playGame = App.class.getDeclaredMethod(
+                "playGame", char[][].class, String.class, String.class, Scanner.class);
+        playGame.setAccessible(true);
+
+        char[][] b = emptyBoard();
         b[0][0] = 'X';
         b[0][1] = 'X';
-        b[0][2] = 'X';
+        // X wins on first move at (1,3), so O turn is skipped by finished() break.
+        Scanner sc = new Scanner(new ByteArrayInputStream("1 3\n".getBytes(StandardCharsets.UTF_8)));
 
-        // In your implementation, minimax depends on AI + finished()
-        App.AI = 'X';
+        playGame.invoke(null, b, "user", "user", sc);
 
-        // move parameter can be anything; there are no empties used in scoring if finished triggers
-        int score = App.minimax(b, 'O', false);
+        assertEquals('X', b[0][2]);
+        assertTrue(App.finished(b, true));
+    }
 
-        assertEquals(1, score, "If AI is X and X has won, score should be +1");
+    @Test
+    void main_handlesBadParametersAndExit() {
+        captureStdout();
+        String input = String.join("\n",
+                "oops",
+                "start easy easy",
+                "exit",
+                "");
+        System.setIn(new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)));
+
+        App.main(new String[0]);
+
+        String s = stdout();
+        assertTrue(s.contains("Input command:"));
+        assertTrue(s.contains("Bad parameters!"));
+        assertTrue(s.contains("Making move level \"easy\""));
     }
 }

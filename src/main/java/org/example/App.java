@@ -436,6 +436,16 @@ public class App {
 
     static int minimax(char[][] arr, char move, boolean isMaximising) {
 
+        // Base case: if this position is already terminal, score it directly.
+        if (finished(arr, true)) {
+            if ((xWin == 1 && AI == 'X') || (oWin == 1 && AI == 'O')) {
+                return 1;
+            } else if (xWin == 1 || oWin == 1) {
+                return -1;
+            }
+            return 0;
+        }
+
         int bestscore = Integer.MIN_VALUE;
 
         if (isMaximising) {//find max score if its maximising's turn
